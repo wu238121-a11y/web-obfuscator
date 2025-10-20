@@ -52,7 +52,7 @@ func (o *Obfuscator) setupJSCode(
     module.exports = exports;
     %s
     globalThis.JavaScriptObfuscator = module.exports;
-	})()
+        })()
   `, JsCode)
 	opts := v8go.CompileOptions{}
 	if o.CachedData != nil {
@@ -75,12 +75,17 @@ func (o *Obfuscator) SetLevel(level string) {
 	o.Level = ObfuscationLevel(level)
 }
 
+func escapeJS(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `\'`)
+	s = strings.ReplaceAll(s, "\n", `\n`)
+	s = strings.ReplaceAll(s, "\r", `\r`)
+	s = strings.ReplaceAll(s, "\t", `\t`)
+	return s
+}
+
 // Obfuscate transforms the provided JavaScript code using the obfuscator
 func (o *Obfuscator) Obfuscate(code string) (string, error) {
-	// Escape backticks in the input code to prevent JavaScript template literal issues
-	if strings.Contains(code, "`") {
-		return "", fmt.Errorf("code cannot contain backtick (`) ")
-	}
 	isolate := v8go.NewIsolate()
 	defer isolate.Dispose()
 	context := v8go.NewContext(isolate)
@@ -90,8 +95,8 @@ func (o *Obfuscator) Obfuscate(code string) (string, error) {
 	}
 	options := getOptions(o.Level)
 	codeString := fmt.Sprintf(
-		"const code = `%s`; %s ;const obfuscatedCode = JavaScriptObfuscator.obfuscate(code, options).getObfuscatedCode();obfuscatedCode;",
-		code,
+		"const code = '%s'; %s ;const obfuscatedCode = JavaScriptObfuscator.obfuscate(code, options).getObfuscatedCode();obfuscatedCode;",
+		escapeJS(code),
 		options,
 	)
 	val, err := context.RunScript(codeString, "run.js")
